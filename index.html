@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ネイルサロン予約</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- LINE LIFF SDK -->
+  <script src="https://static.line-scdn.net/liff/edge/2/liff.js"></script>
+</head>
+<body class="bg-pink-50 text-gray-800 font-sans">
+
+  <div id="app" class="max-w-md mx-auto min-h-screen bg-white shadow-lg flex flex-col">
+    <!-- ヘッダー -->
+    <header class="bg-pink-500 text-white p-4 text-center font-bold text-lg">
+      Nail Salon 予約
+    </header>
+
+    <!-- メインコンテンツ領域 -->
+    <main class="p-4 flex-1">
+      
+      <!-- ステップ1: メニュー選択 -->
+      <div id="step-menu" class="space-y-4">
+        <h2 class="text-md font-bold text-pink-600 border-b pb-2">ご希望のメニューを選択してください</h2>
+        <div class="space-y-2">
+          <label class="block border p-3 rounded-lg cursor-pointer hover:bg-pink-50 flex justify-between items-center">
+            <span>ワンカラー (60分)</span>
+            <span class="font-bold text-pink-550">¥5,500</span>
+            <input type="radio" name="menu" value="ワンカラー" class="accent-pink-500">
+          </label>
+          <label class="block border p-3 rounded-lg cursor-pointer hover:bg-pink-50 flex justify-between items-center">
+            <span>グラデーション (60分)</span>
+            <span class="font-bold text-pink-550">¥6,500</span>
+            <input type="radio" name="menu" value="グラデーション" class="accent-pink-500">
+          </label>
+          <label class="block border p-3 rounded-lg cursor-pointer hover:bg-pink-50 flex justify-between items-center">
+            <span>フレンチネイル (90分)</span>
+            <span class="font-bold text-pink-550">¥7,000</span>
+            <input type="radio" name="menu" value="フレンチネイル" class="accent-pink-500">
+          </label>
+          <label class="block border p-3 rounded-lg cursor-pointer hover:bg-pink-50 flex justify-between items-center">
+            <span>やり放題・持ち込み (120分)</span>
+            <span class="font-bold text-pink-550">¥9,500</span>
+            <input type="radio" name="menu" value="やり放題（持ち込みOK）" class="accent-pink-500">
+          </label>
+        </div>
+        <button onclick="goToDateSelect()" class="w-full bg-pink-500 text-white py-3 rounded-lg font-bold mt-6 shadow">次へ進む</button>
+      </div>
+
+      <!-- ステップ2: 日時選択（初期状態では非表示） -->
+      <div id="step-date" class="hidden space-y-4">
+        <h2 class="text-md font-bold text-pink-600 border-b pb-2">ご希望の日時を選択してください</h2>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">日付</label>
+          <input type="date" id="reservation-date" class="w-full border p-2 rounded-lg" onchange="fetchAvailableSlots()">
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">空き時間</label>
+          <div id="slots-container" class="grid grid-cols-2 gap-2 mt-2">
+            <!-- GASから取得した空き時間がここにボタンとして挿入されます -->
+            <p class="text-sm text-gray-400 col-span-2">日付を選択してください</p>
+          </div>
+        </div>
+        <button onclick="goToConfirm()" class="w-full bg-pink-500 text-white py-3 rounded-lg font-bold mt-6 shadow">確認画面へ</button>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwvkWdtmFcEG5u365fYT8FNJlzuJYx8QlHsk6FaSLOQKoPYZbfG7qchyXRjVtk_Sxlc/exec"; // デプロイしたGASのURLを入れる
+    let selectedMenu = "";
+    let selectedDate = "";
+    let selectedTime = "";
+
+    function goToDateSelect() {
+      const checkedMenu = document.querySelector('input[name="menu"]:checked');
+      if (!checkedMenu) {
+        alert("メニューを選択してください。");
+        return;
+      }
+      selectedMenu = checkedMenu.value;
+      document.getElementById('step-menu').classList.add('hidden');
+      document.getElementById('step-date').classList.remove('hidden');
+    }
+
+    // GASから空き時間を取得する関数
+    async function fetchAvailableSlots() {
+      selectedDate = document.getElementById('reservation-date').value;
+      if (!selectedDate) return;
+
+      const container = document.getElementById('slots-container');
+      container.innerHTML = '<p class="text-sm text-gray-500 col-span-2">空き時間を読み込み中...</p>';
+
+      try {
+        const response = await fetch(`${GAS_URL}?date=${selectedDate}&menu=${encodeURIComponent(selectedMenu)}`);
+        const data = await response.json();
+
+        container.innerHTML = '';
+        if (data.slots && data.slots.length > 0) {
+          data.slots.forEach(time => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'border border-pink-300 p-2 rounded-lg text-center hover:bg-pink-500 hover:text-white transition';
+            btn.innerText = time;
+            btn.onclick = () => {
+              // 選択状態の見た目変更
+              document.querySelectorAll('#slots-container button').forEach(b => b.classList.remove('bg-pink-500', 'text-white'));
+              btn.classList.add('bg-pink-500', 'text-white');
+              selectedTime = time;
+            };
+            container.appendChild(btn);
+          });
+        } else {
+          container.innerHTML = '<p class="text-sm text-red-500 col-span-2">この日の空き時間はありません。</p>';
+        }
+      } catch (e) {
+        container.innerHTML = '<p class="text-sm text-red-500 col-span-2">空き時間の取得に失敗しました。</p>';
+      }
+    }
+
+    function goToConfirm() {
+      if (!selectedDate || !selectedTime) {
+        alert("日付と時間を選択してください。");
+        return;
+      }
+      alert(`選択内容:\nメニュー: ${selectedMenu}\n日時: ${selectedDate} ${selectedTime}`);
+      // ここから予約完了処理へ進むロジックを繋ぎます
+    }
+  </script>
+</body>
+</html>
